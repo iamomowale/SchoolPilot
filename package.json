@@ -1,0 +1,21 @@
+{
+  "name": "schoolpilot",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "dev": "pnpm run docker:up && pnpm exec concurrently -k -n web,api -c \"blue,green\" \"pnpm --filter @schoolpilot/web dev\" \"pnpm --filter @schoolpilot/api start:dev\"",
+    "docker:up": "docker compose -f infra/docker-compose.yml up -d",
+    "docker:down": "docker compose -f infra/docker-compose.yml down",
+    "lint": "pnpm --filter @schoolpilot/web lint && pnpm --filter @schoolpilot/api lint",
+    "test": "pnpm -r --if-present test",
+    "typecheck": "pnpm --filter @schoolpilot/web typecheck && pnpm --filter @schoolpilot/api typecheck && pnpm --filter @schoolpilot/shared typecheck",
+    "format": "pnpm exec prettier --write ."
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.1",
+    "concurrently": "^9.0.1",
+    "prettier": "^3.5.4",
+    "typescript": "^5.7.3"
+  }
+}
