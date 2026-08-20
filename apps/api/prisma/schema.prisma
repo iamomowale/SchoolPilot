@@ -7,7 +7,937 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model HealthCheck {
-  id        Int      @id @default(autoincrement())
-  createdAt DateTime @default(now())
+model Tenant {
+  id           String        @id @default(cuid())
+  slug         String        @unique
+  name         String
+  domain       String?       @unique
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  deletedAt    DateTime?
+  isActive     Boolean       @default(true)
+  branches            Branch[]
+  users               UserTenantMembership[]
+  roles               Role[]
+  permissions         Permission[]
+  sessions            AcademicSession[]
+  terms               Term[]
+  schoolClasses       SchoolClass[]
+  sections            Section[]
+  subjects            Subject[]
+  teacherAssignments  TeacherAssignment[]
+  studentProfiles     StudentProfile[]
+  guardianProfiles    GuardianProfile[]
+  studentGuardians    StudentGuardian[]
+  studentEnrollments  StudentEnrollment[]
+  attendanceRecords  AttendanceRecord[]
+  assessmentTypes    AssessmentType[]
+  assessmentConfigs  AssessmentConfiguration[]
+  assessmentScores   AssessmentScore[]
+  resultSheets       ResultSheet[]
+  termResults        StudentTermResult[]
+  reportCards        ReportCard[]
+  feeCategories      FeeCategory[]
+  feeStructures      FeeStructure[]
+  feeAdjustments     StudentFeeAdjustment[]
+  invoices           Invoice[]
+  invoiceLineItems   InvoiceLineItem[]
+  payments           Payment[]
+  accountCredits     StudentAccountCredit[]
+  gatewayPayments    GatewayPayment[]
+  paymentWebhookEvents PaymentWebhookEvent[]
+  announcements       Announcement[]
+  announcementTargets AnnouncementTarget[]
+  notifications       Notification[]
+  notificationDeliveries NotificationDelivery[]
+  auditLogs           AuditLog[]
+}
+
+model Branch {
+  id           String        @id @default(cuid())
+  tenantId     String
+  tenant       Tenant        @relation(fields: [tenantId], references: [id])
+  name         String
+  code         String
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  deletedAt    DateTime?
+  isActive     Boolean       @default(true)
+  sessions           AcademicSession[]
+  terms              Term[]
+  schoolClasses      SchoolClass[]
+  subjects           Subject[]
+  teacherAssignments TeacherAssignment[]
+  users              UserTenantMembership[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+model User {
+  id                   String                  @id @default(cuid())
+  email                String                  @unique
+  passwordHash         String
+  firstName            String
+  lastName             String
+  isActive             Boolean                 @default(true)
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @updatedAt
+  deletedAt            DateTime?
+  tenantMemberships    UserTenantMembership[]
+  roles                UserRole[]
+  teacherAssignments   TeacherAssignment[]
+  studentProfiles      StudentProfile[]
+  guardianProfiles     GuardianProfile[]
+  auditLogs            AuditLog[]
+  refreshTokens        RefreshToken[]
+  passwordResetTokens  PasswordResetToken[]
+  attendanceRecords    AttendanceRecord[]
+  assessmentScores     AssessmentScore[]
+  generatedReportCards ReportCard[]
+  createdFeeAdjustments StudentFeeAdjustment[] @relation("FeeAdjustmentCreator")
+  approvedFeeAdjustments StudentFeeAdjustment[] @relation("FeeAdjustmentApprover")
+  generatedInvoices Invoice[]
+  recordedPayments Payment[] @relation("PaymentRecorder")
+  reversedPayments Payment[] @relation("PaymentReverser")
+  reversedCredits StudentAccountCredit[] @relation("CreditReverser")
+  initiatedGatewayPayments GatewayPayment[] @relation("GatewayPaymentInitiator")
+  announcementsCreated Announcement[] @relation("AnnouncementCreator")
+  notifications       Notification[]
+}
+
+model Role {
+  id           String        @id @default(cuid())
+  tenantId     String
+  tenant       Tenant        @relation(fields: [tenantId], references: [id])
+  name         String
+  description  String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  deletedAt    DateTime?
+  isActive     Boolean       @default(true)
+  userRoles    UserRole[]
+  permissions  RolePermission[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+model Permission {
+  id           String        @id @default(cuid())
+  tenantId     String
+  tenant       Tenant        @relation(fields: [tenantId], references: [id])
+  key          String
+  description  String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  deletedAt    DateTime?
+  roles        RolePermission[]
+
+  @@unique([tenantId, key])
+  @@index([tenantId])
+}
+
+model UserTenantMembership {
+  id           String        @id @default(cuid())
+  tenantId     String
+  tenant       Tenant        @relation(fields: [tenantId], references: [id])
+  branchId     String?
+  branch       Branch?       @relation(fields: [branchId], references: [id])
+  userId       String
+  user         User          @relation(fields: [userId], references: [id])
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  deletedAt    DateTime?
+  isActive     Boolean       @default(true)
+  userRoles    UserRole[]
+
+  @@unique([tenantId, userId, branchId])
+  @@index([tenantId])
+  @@index([userId])
+}
+
+model UserRole {
+  id                 String               @id @default(cuid())
+  membershipId       String
+  membership         UserTenantMembership @relation(fields: [membershipId], references: [id])
+  roleId             String
+  role               Role                 @relation(fields: [roleId], references: [id])
+  userId             String
+  user               User                 @relation(fields: [userId], references: [id])
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  deletedAt          DateTime?
+  isActive           Boolean              @default(true)
+
+  @@unique([membershipId, roleId])
+  @@index([roleId])
+  @@index([userId])
+}
+
+model RolePermission {
+  id           String        @id @default(cuid())
+  roleId       String
+  role         Role          @relation(fields: [roleId], references: [id])
+  permissionId String
+  permission   Permission    @relation(fields: [permissionId], references: [id])
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  deletedAt    DateTime?
+
+  @@unique([roleId, permissionId])
+}
+
+model AcademicSession {
+  id           String        @id @default(cuid())
+  tenantId     String
+  tenant       Tenant        @relation(fields: [tenantId], references: [id])
+  branchId     String?
+  branch       Branch?       @relation(fields: [branchId], references: [id])
+  name         String
+  startsAt     DateTime
+  endsAt       DateTime
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  deletedAt    DateTime?
+  isActive     Boolean       @default(true)
+  terms        Term[]
+  schoolClasses SchoolClass[]
+  feeStructures FeeStructure[]
+  invoices Invoice[]
+
+  @@index([tenantId])
+}
+
+model Term {
+  id                String            @id @default(cuid())
+  tenantId          String
+  tenant            Tenant            @relation(fields: [tenantId], references: [id])
+  branchId          String?
+  branch            Branch?           @relation(fields: [branchId], references: [id])
+  academicSessionId String
+  session           AcademicSession   @relation(fields: [academicSessionId], references: [id])
+  name              String
+  startsAt          DateTime
+  endsAt            DateTime
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  deletedAt         DateTime?
+  isActive          Boolean           @default(true)
+  assessmentConfigs AssessmentConfiguration[]
+  resultSheets      ResultSheet[]
+  feeStructures     FeeStructure[]
+  invoices          Invoice[]
+
+  @@index([tenantId])
+}
+
+model SchoolClass {
+  id                  String               @id @default(cuid())
+  tenantId            String
+  tenant              Tenant               @relation(fields: [tenantId], references: [id])
+  branchId            String?
+  branch              Branch?              @relation(fields: [branchId], references: [id])
+  academicSessionId   String?
+  academicSession     AcademicSession?     @relation(fields: [academicSessionId], references: [id])
+  name                String
+  code                String
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  deletedAt           DateTime?
+  isActive            Boolean              @default(true)
+  sections            Section[]
+  teacherAssignments  TeacherAssignment[]
+  attendanceRecords   AttendanceRecord[]
+  assessmentConfigs   AssessmentConfiguration[]
+  resultSheets        ResultSheet[]
+  feeStructures       FeeStructure[]
+  invoices            Invoice[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+model Section {
+  id           String        @id @default(cuid())
+  tenantId     String
+  tenant       Tenant        @relation(fields: [tenantId], references: [id])
+  classId      String
+  schoolClass  SchoolClass   @relation(fields: [classId], references: [id])
+  name         String
+  capacity     Int?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  deletedAt    DateTime?
+  isActive     Boolean       @default(true)
+  teacherAssignments TeacherAssignment[]
+  attendanceRecords AttendanceRecord[]
+  assessmentConfigs AssessmentConfiguration[]
+  resultSheets      ResultSheet[]
+
+  @@index([tenantId])
+}
+
+model Subject {
+  id                 String               @id @default(cuid())
+  tenantId           String
+  tenant             Tenant               @relation(fields: [tenantId], references: [id])
+  branchId           String?
+  branch             Branch?              @relation(fields: [branchId], references: [id])
+  name               String
+  code               String
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  deletedAt          DateTime?
+  isActive           Boolean              @default(true)
+  teacherAssignments TeacherAssignment[]
+  assessmentConfigs AssessmentConfiguration[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+model TeacherAssignment {
+  id           String        @id @default(cuid())
+  tenantId     String
+  tenant       Tenant        @relation(fields: [tenantId], references: [id])
+  userId       String
+  user         User          @relation(fields: [userId], references: [id])
+  branchId     String?
+  branch       Branch?       @relation(fields: [branchId], references: [id])
+  classId      String?
+  schoolClass  SchoolClass?  @relation(fields: [classId], references: [id])
+  sectionId    String?
+  section      Section?      @relation(fields: [sectionId], references: [id])
+  subjectId    String?
+  subject      Subject?      @relation(fields: [subjectId], references: [id])
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  deletedAt    DateTime?
+  isActive     Boolean       @default(true)
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([sectionId])
+}
+
+model StudentProfile {
+  id               String               @id @default(cuid())
+  tenantId         String
+  tenant           Tenant               @relation(fields: [tenantId], references: [id])
+  userId           String?
+  user             User?                @relation(fields: [userId], references: [id])
+  admissionNumber  String
+  firstName        String
+  lastName         String
+  email            String?
+  phone            String?
+  status           String               @default("active")
+  dateOfBirth      DateTime?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  deletedAt        DateTime?
+  studentGuardians StudentGuardian[]
+  enrollments      StudentEnrollment[]
+  attendanceRecords AttendanceRecord[]
+  assessmentScores  AssessmentScore[]
+  termResults       StudentTermResult[]
+  reportCards       ReportCard[]
+  feeAdjustments    StudentFeeAdjustment[]
+  invoices          Invoice[]
+  payments          Payment[]
+  accountCredits    StudentAccountCredit[]
+
+  @@unique([tenantId, admissionNumber])
+  @@index([tenantId])
+}
+
+model GuardianProfile {
+  id               String               @id @default(cuid())
+  tenantId         String
+  tenant           Tenant               @relation(fields: [tenantId], references: [id])
+  userId           String?
+  user             User?                @relation(fields: [userId], references: [id])
+  firstName        String
+  lastName         String
+  email            String?
+  phone            String?
+  relationship     String?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  deletedAt        DateTime?
+  studentGuardians StudentGuardian[]
+
+  @@index([tenantId])
+}
+
+model StudentGuardian {
+  id           String            @id @default(cuid())
+  tenantId     String
+  tenant       Tenant            @relation(fields: [tenantId], references: [id])
+  studentId    String
+  student      StudentProfile    @relation(fields: [studentId], references: [id])
+  guardianId   String
+  guardian     GuardianProfile   @relation(fields: [guardianId], references: [id])
+  relationship String
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  deletedAt    DateTime?
+
+  @@unique([tenantId, studentId, guardianId])
+  @@index([tenantId])
+}
+
+model StudentEnrollment {
+  id           String            @id @default(cuid())
+  tenantId     String
+  tenant       Tenant            @relation(fields: [tenantId], references: [id])
+  studentId    String
+  student      StudentProfile    @relation(fields: [studentId], references: [id])
+  sessionId    String
+  branchId     String
+  classId      String
+  sectionId    String
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  deletedAt    DateTime?
+
+  @@index([tenantId])
+}
+
+enum AttendanceStatus {
+  present
+  absent
+  late
+  excused
+}
+
+model AttendanceRecord {
+  id             String           @id @default(cuid())
+  tenantId       String
+  tenant         Tenant           @relation(fields: [tenantId], references: [id])
+  studentId      String
+  student        StudentProfile   @relation(fields: [studentId], references: [id])
+  classId        String
+  schoolClass    SchoolClass      @relation(fields: [classId], references: [id])
+  sectionId      String
+  section        Section          @relation(fields: [sectionId], references: [id])
+  attendanceDate DateTime         @db.Date
+  status         AttendanceStatus
+  recordedById   String
+  recordedBy     User             @relation(fields: [recordedById], references: [id])
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@unique([tenantId, studentId, attendanceDate])
+  @@index([tenantId, classId, sectionId, attendanceDate])
+  @@index([tenantId, attendanceDate])
+}
+
+enum ResultStatus {
+  draft
+  submitted
+  approved
+  published
+}
+
+model AssessmentType {
+  id            String                    @id @default(cuid())
+  tenantId      String
+  tenant        Tenant                    @relation(fields: [tenantId], references: [id])
+  name          String
+  code          String
+  defaultWeight Float                     @default(0)
+  defaultMaxScore Float                   @default(100)
+  isActive      Boolean                   @default(true)
+  createdAt     DateTime                  @default(now())
+  updatedAt     DateTime                  @updatedAt
+  deletedAt     DateTime?
+  configurations AssessmentConfiguration[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+model AssessmentConfiguration {
+  id               String              @id @default(cuid())
+  tenantId         String
+  tenant           Tenant              @relation(fields: [tenantId], references: [id])
+  termId           String
+  term             Term                @relation(fields: [termId], references: [id])
+  classId          String
+  schoolClass      SchoolClass         @relation(fields: [classId], references: [id])
+  sectionId        String
+  section          Section             @relation(fields: [sectionId], references: [id])
+  subjectId        String
+  subject          Subject             @relation(fields: [subjectId], references: [id])
+  assessmentTypeId String
+  assessmentType   AssessmentType      @relation(fields: [assessmentTypeId], references: [id])
+  weight           Float
+  maxScore         Float
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  deletedAt        DateTime?
+  scores           AssessmentScore[]
+
+  @@unique([tenantId, termId, classId, sectionId, subjectId, assessmentTypeId])
+  @@index([tenantId, termId, classId, sectionId])
+}
+
+model AssessmentScore {
+  id              String                  @id @default(cuid())
+  tenantId        String
+  tenant          Tenant                  @relation(fields: [tenantId], references: [id])
+  configurationId String
+  configuration   AssessmentConfiguration @relation(fields: [configurationId], references: [id])
+  studentId       String
+  student         StudentProfile          @relation(fields: [studentId], references: [id])
+  score           Float
+  enteredById     String
+  enteredBy       User                    @relation(fields: [enteredById], references: [id])
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+
+  @@unique([configurationId, studentId])
+  @@index([tenantId, studentId])
+}
+
+model ResultSheet {
+  id        String       @id @default(cuid())
+  tenantId  String
+  tenant    Tenant       @relation(fields: [tenantId], references: [id])
+  termId    String
+  term      Term         @relation(fields: [termId], references: [id])
+  classId   String
+  schoolClass SchoolClass @relation(fields: [classId], references: [id])
+  sectionId String
+  section   Section      @relation(fields: [sectionId], references: [id])
+  status    ResultStatus @default(draft)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  results   StudentTermResult[]
+  reportCards ReportCard[]
+
+  @@unique([tenantId, termId, classId, sectionId])
+  @@index([tenantId, status])
+}
+
+model StudentTermResult {
+  id            String       @id @default(cuid())
+  tenantId      String
+  tenant        Tenant       @relation(fields: [tenantId], references: [id])
+  resultSheetId String
+  resultSheet   ResultSheet  @relation(fields: [resultSheetId], references: [id])
+  studentId     String
+  student       StudentProfile @relation(fields: [studentId], references: [id])
+  weightedScore Float
+  percentage    Float
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@unique([resultSheetId, studentId])
+  @@index([tenantId, studentId])
+}
+
+model ReportCard {
+  id             String         @id @default(cuid())
+  tenantId       String
+  tenant         Tenant         @relation(fields: [tenantId], references: [id])
+  resultSheetId  String
+  resultSheet    ResultSheet    @relation(fields: [resultSheetId], references: [id])
+  studentId      String
+  student        StudentProfile @relation(fields: [studentId], references: [id])
+  teacherComment String?
+  storageKey     String
+  generatedById  String
+  generatedBy    User           @relation(fields: [generatedById], references: [id])
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@unique([resultSheetId, studentId])
+  @@index([tenantId, studentId])
+}
+
+enum FeeAdjustmentType {
+  discount
+  waiver
+}
+
+enum FeeAdjustmentStatus {
+  pending
+  approved
+  rejected
+}
+
+enum InvoiceStatus {
+  draft
+  issued
+  partially_paid
+  paid
+  void
+}
+
+model FeeCategory {
+  id          String         @id @default(cuid())
+  tenantId    String
+  tenant      Tenant         @relation(fields: [tenantId], references: [id])
+  name        String
+  code        String
+  description String?
+  isActive    Boolean        @default(true)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  deletedAt   DateTime?
+  structures  FeeStructure[]
+  lineItems   InvoiceLineItem[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+model FeeStructure {
+  id          String         @id @default(cuid())
+  tenantId    String
+  tenant      Tenant         @relation(fields: [tenantId], references: [id])
+  sessionId   String
+  session     AcademicSession @relation(fields: [sessionId], references: [id])
+  termId      String
+  term        Term           @relation(fields: [termId], references: [id])
+  classId     String
+  schoolClass SchoolClass    @relation(fields: [classId], references: [id])
+  categoryId  String
+  category    FeeCategory    @relation(fields: [categoryId], references: [id])
+  amount      Float
+  isActive    Boolean        @default(true)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  deletedAt   DateTime?
+  adjustments StudentFeeAdjustment[]
+  lineItems   InvoiceLineItem[]
+
+  @@unique([tenantId, sessionId, termId, classId, categoryId])
+  @@index([tenantId, sessionId, termId, classId])
+}
+
+model StudentFeeAdjustment {
+  id            String              @id @default(cuid())
+  tenantId      String
+  tenant        Tenant              @relation(fields: [tenantId], references: [id])
+  feeStructureId String
+  feeStructure  FeeStructure        @relation(fields: [feeStructureId], references: [id])
+  studentId     String
+  student       StudentProfile      @relation(fields: [studentId], references: [id])
+  type          FeeAdjustmentType
+  amount        Float
+  reason        String
+  status        FeeAdjustmentStatus @default(pending)
+  createdById   String
+  createdBy     User                @relation("FeeAdjustmentCreator", fields: [createdById], references: [id])
+  approvedById  String?
+  approvedBy    User?               @relation("FeeAdjustmentApprover", fields: [approvedById], references: [id])
+  approvedAt    DateTime?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  @@index([tenantId, studentId, status])
+}
+
+model Invoice {
+  id          String        @id @default(cuid())
+  tenantId    String
+  tenant      Tenant        @relation(fields: [tenantId], references: [id])
+  studentId   String
+  student     StudentProfile @relation(fields: [studentId], references: [id])
+  sessionId   String
+  session     AcademicSession @relation(fields: [sessionId], references: [id])
+  termId      String
+  term        Term          @relation(fields: [termId], references: [id])
+  classId     String
+  schoolClass SchoolClass   @relation(fields: [classId], references: [id])
+  status      InvoiceStatus @default(draft)
+  subtotal    Float
+  discounts   Float         @default(0)
+  waivers     Float         @default(0)
+  total       Float
+  amountPaid  Float         @default(0)
+  balance     Float
+  generatedById String
+  generatedBy User          @relation(fields: [generatedById], references: [id])
+  issuedAt    DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  lineItems   InvoiceLineItem[]
+  payments    Payment[]
+  gatewayPayments GatewayPayment[]
+
+  @@unique([tenantId, studentId, sessionId, termId, classId])
+  @@index([tenantId, studentId, status])
+}
+
+model InvoiceLineItem {
+  id             String       @id @default(cuid())
+  tenantId       String
+  tenant         Tenant       @relation(fields: [tenantId], references: [id])
+  invoiceId      String
+  invoice        Invoice      @relation(fields: [invoiceId], references: [id])
+  feeStructureId String?
+  feeStructure   FeeStructure? @relation(fields: [feeStructureId], references: [id])
+  categoryId     String
+  category       FeeCategory  @relation(fields: [categoryId], references: [id])
+  description    String
+  amount         Float
+  discountAmount Float        @default(0)
+  waiverAmount   Float        @default(0)
+  netAmount      Float
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([tenantId, invoiceId])
+}
+
+enum PaymentMethod {
+  cash
+  bank_transfer
+  card
+  cheque
+  other
+}
+
+enum PaymentStatus {
+  completed
+  reversed
+}
+
+model Payment {
+  id            String        @id @default(cuid())
+  tenantId      String
+  tenant        Tenant        @relation(fields: [tenantId], references: [id])
+  studentId     String
+  student       StudentProfile @relation(fields: [studentId], references: [id])
+  invoiceId     String?
+  invoice       Invoice?      @relation(fields: [invoiceId], references: [id])
+  receiptNumber String
+  method        PaymentMethod
+  reference     String?
+  amount        Float
+  appliedAmount Float
+  creditAmount  Float         @default(0)
+  status        PaymentStatus @default(completed)
+  paidAt        DateTime      @default(now())
+  recordedById  String
+  recordedBy    User          @relation("PaymentRecorder", fields: [recordedById], references: [id])
+  reversedById  String?
+  reversedBy    User?         @relation("PaymentReverser", fields: [reversedById], references: [id])
+  reversalReason String?
+  reversedAt    DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  accountCredit StudentAccountCredit?
+  gatewayPayment GatewayPayment?
+
+  @@unique([tenantId, receiptNumber])
+  @@index([tenantId, studentId, paidAt])
+  @@index([tenantId, method, paidAt])
+}
+
+model StudentAccountCredit {
+  id            String         @id @default(cuid())
+  tenantId      String
+  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  studentId     String
+  student       StudentProfile @relation(fields: [studentId], references: [id])
+  paymentId     String         @unique
+  payment       Payment        @relation(fields: [paymentId], references: [id])
+  originalAmount Float
+  balance       Float
+  reversedById  String?
+  reversedBy    User?          @relation("CreditReverser", fields: [reversedById], references: [id])
+  reversedAt    DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([tenantId, studentId])
+}
+
+enum GatewayPaymentStatus {
+  initiated
+  succeeded
+  failed
+}
+
+enum PaymentWebhookStatus {
+  processed
+  failed
+}
+
+enum AnnouncementTargetType {
+  tenant
+  branch
+  class
+  role
+  user
+}
+
+enum NotificationChannel {
+  in_app
+  email
+  sms
+}
+
+enum NotificationDeliveryStatus {
+  queued
+  delivered
+  failed
+}
+
+model Announcement {
+  id          String               @id @default(cuid())
+  tenantId    String
+  tenant      Tenant               @relation(fields: [tenantId], references: [id])
+  title       String
+  body        String
+  createdById String
+  createdBy   User                 @relation("AnnouncementCreator", fields: [createdById], references: [id])
+  publishedAt DateTime             @default(now())
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  targets     AnnouncementTarget[]
+  notifications Notification[]
+
+  @@index([tenantId, publishedAt])
+}
+
+model AnnouncementTarget {
+  id             String                 @id @default(cuid())
+  tenantId       String
+  tenant         Tenant                 @relation(fields: [tenantId], references: [id])
+  announcementId String
+  announcement   Announcement           @relation(fields: [announcementId], references: [id])
+  type           AnnouncementTargetType
+  targetId       String?
+  createdAt      DateTime               @default(now())
+
+  @@index([tenantId, type, targetId])
+  @@index([announcementId])
+}
+
+model Notification {
+  id             String                   @id @default(cuid())
+  tenantId       String
+  tenant         Tenant                   @relation(fields: [tenantId], references: [id])
+  userId         String
+  user           User                     @relation(fields: [userId], references: [id])
+  announcementId String?
+  announcement   Announcement?            @relation(fields: [announcementId], references: [id])
+  title          String
+  body           String
+  readAt         DateTime?
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+  deliveries     NotificationDelivery[]
+
+  @@unique([announcementId, userId])
+  @@index([tenantId, userId, readAt])
+}
+
+model NotificationDelivery {
+  id             String                     @id @default(cuid())
+  tenantId       String
+  tenant         Tenant                     @relation(fields: [tenantId], references: [id])
+  notificationId String
+  notification   Notification               @relation(fields: [notificationId], references: [id])
+  channel        NotificationChannel
+  status         NotificationDeliveryStatus @default(queued)
+  attempts       Int                        @default(0)
+  lastError      String?
+  deliveredAt    DateTime?
+  nextAttemptAt  DateTime?
+  createdAt      DateTime                   @default(now())
+  updatedAt      DateTime                   @updatedAt
+
+  @@unique([notificationId, channel])
+  @@index([tenantId, status, nextAttemptAt])
+}
+
+model GatewayPayment {
+  id                String               @id @default(cuid())
+  tenantId          String
+  tenant            Tenant               @relation(fields: [tenantId], references: [id])
+  invoiceId         String
+  invoice           Invoice              @relation(fields: [invoiceId], references: [id])
+  initiatedById     String
+  initiatedBy       User                 @relation("GatewayPaymentInitiator", fields: [initiatedById], references: [id])
+  provider          String
+  providerPaymentId String
+  checkoutUrl       String
+  amount            Float
+  currency          String
+  status            GatewayPaymentStatus @default(initiated)
+  paymentId         String?              @unique
+  payment           Payment?             @relation(fields: [paymentId], references: [id])
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  @@unique([tenantId, provider, providerPaymentId])
+  @@index([tenantId, invoiceId, status])
+}
+
+model PaymentWebhookEvent {
+  id              String               @id @default(cuid())
+  tenantId        String
+  tenant          Tenant               @relation(fields: [tenantId], references: [id])
+  provider        String
+  providerEventId String
+  status          PaymentWebhookStatus
+  payload         String
+  failureReason   String?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  @@unique([provider, providerEventId])
+  @@index([tenantId, provider, createdAt])
+}
+
+model AuditLog {
+  id           String        @id @default(cuid())
+  tenantId     String
+  tenant       Tenant        @relation(fields: [tenantId], references: [id])
+  userId       String?
+  user         User?         @relation(fields: [userId], references: [id])
+  action       String
+  entityType   String
+  entityId     String?
+  details      String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  deletedAt    DateTime?
+
+  @@index([tenantId])
+  @@index([userId])
+}
+
+model RefreshToken {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id])
+  token      String    @unique
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([userId])
+}
+
+model PasswordResetToken {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id])
+  token      String    @unique
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([userId])
 }
