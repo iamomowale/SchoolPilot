@@ -17,9 +17,11 @@ import { ResultsModule } from './results/results.module';
 import { ReportCardsModule } from './report-cards/report-cards.module';
 import { FinanceModule } from './finance/finance.module';
 import { AnnouncementsModule } from './announcements/announcements.module';
+import { ReportingModule } from './reporting/reporting.module';
+import { UploadsModule } from './uploads/uploads.module';
 
 @Module({
-  imports: [AuthModule, AuthorizationModule, SchoolConfigModule, StudentManagementModule, AttendanceModule, ResultsModule, ReportCardsModule, FinanceModule, AnnouncementsModule],
+  imports: [AuthModule, AuthorizationModule, SchoolConfigModule, StudentManagementModule, AttendanceModule, ResultsModule, ReportCardsModule, FinanceModule, AnnouncementsModule, ReportingModule, UploadsModule],
   controllers: [HealthController, ExampleController],
   providers: [
     PrismaService,

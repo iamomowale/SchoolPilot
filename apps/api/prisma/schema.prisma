@@ -50,6 +50,8 @@ model Tenant {
   announcementTargets AnnouncementTarget[]
   notifications       Notification[]
   notificationDeliveries NotificationDelivery[]
+  reportExports       ReportExport[]
+  uploadedFiles       UploadedFile[]
   auditLogs           AuditLog[]
 }
 
@@ -104,6 +106,8 @@ model User {
   initiatedGatewayPayments GatewayPayment[] @relation("GatewayPaymentInitiator")
   announcementsCreated Announcement[] @relation("AnnouncementCreator")
   notifications       Notification[]
+  requestedReportExports ReportExport[] @relation("ReportExportRequester")
+  uploadedFiles       UploadedFile[] @relation("UploadedFileCreator")
 }
 
 model Role {
@@ -347,6 +351,7 @@ model StudentProfile {
   invoices          Invoice[]
   payments          Payment[]
   accountCredits    StudentAccountCredit[]
+  uploadedFiles     UploadedFile[]
 
   @@unique([tenantId, admissionNumber])
   @@index([tenantId])
@@ -757,6 +762,67 @@ model StudentAccountCredit {
   updatedAt     DateTime       @updatedAt
 
   @@index([tenantId, studentId])
+}
+
+enum ReportExportType {
+  enrollment
+  attendance
+  outstanding_fees
+  payments
+  student_performance
+}
+
+enum ReportExportStatus {
+  queued
+  processing
+  completed
+  failed
+}
+
+model ReportExport {
+  id          String             @id @default(cuid())
+  tenantId    String
+  tenant      Tenant             @relation(fields: [tenantId], references: [id])
+  requestedById String
+  requestedBy User                @relation("ReportExportRequester", fields: [requestedById], references: [id])
+  type        ReportExportType
+  filters     Json
+  status      ReportExportStatus @default(queued)
+  rowCount    Int?
+  storageKey  String?
+  error       String?
+  createdAt   DateTime           @default(now())
+  completedAt DateTime?
+  updatedAt   DateTime           @updatedAt
+
+  @@index([tenantId, requestedById, createdAt])
+  @@index([tenantId, status])
+}
+
+enum UploadedFileKind {
+  student_photo
+  student_document
+  school_document
+}
+
+model UploadedFile {
+  id           String           @id @default(cuid())
+  tenantId     String
+  tenant       Tenant           @relation(fields: [tenantId], references: [id])
+  studentId    String?
+  student      StudentProfile?  @relation(fields: [studentId], references: [id])
+  uploadedById String
+  uploadedBy   User             @relation("UploadedFileCreator", fields: [uploadedById], references: [id])
+  kind         UploadedFileKind
+  originalName String
+  contentType  String
+  sizeBytes    Int
+  storageKey   String            @unique
+  createdAt    DateTime          @default(now())
+  deletedAt    DateTime?
+
+  @@index([tenantId, studentId, kind])
+  @@index([tenantId, createdAt])
 }
 
 enum GatewayPaymentStatus {
